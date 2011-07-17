@@ -14,3 +14,6 @@ v850j-test: main.c 78k0_usb_uart.c v850jx3l_flash.c
 
 test: v850j-test
 	./v850j-test
+
+clean:
+	-rm v850j-test *.d
