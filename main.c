@@ -142,9 +142,16 @@ static void test(libusb_device_handle *handle)
     ret = v850j_reset(handle);
     if (ret != 0)
         return;
+    printf("Setting oscillation frequence...\n");
     ret = v850j_osc_frequency_set(handle, 5000000);
     if (ret != 0)
         return;
+    printf("Setting baud rate...\n");
+    ret = v850j_baud_rate_set(handle, 9600);
+    //ret = v850j_baud_rate_set(handle, 38400);
+    if (ret != 0)
+        return;
+    printf("Getting silicon signature...\n");
     ret = v850j_get_silicon_signature(handle);
     if (ret != 0)
         return;
@@ -159,6 +166,7 @@ static void connect(libusb_context *usb_context)
         return;
     }
     test(handle);
+    v850j_78k0_open_close(handle, false);
     v850j_close(handle);
 }
 

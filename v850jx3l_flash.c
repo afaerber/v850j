@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <libusb-1.0/libusb.h>
 #include "v850j.h"
+#include "78k0_usb_uart.h"
 
 #define V850J_TIMEOUT_MS (3000 + 1000)
 
@@ -61,6 +62,10 @@ static int send_command_frame(libusb_device_handle *handle, uint8_t command,
     } while ((ret == LIBUSB_ERROR_PIPE) && (try < RETRY_MAX));
     if (ret != LIBUSB_SUCCESS) {
         fprintf(stderr, "%s: sending failed: %d\n", __func__, ret);
+        return -1;
+    }
+    if (transferred != buffer_length + 5) {
+        fprintf(stderr, "%s: transferred unexpected amount: %d (%d)\n", __func__, transferred, buffer_length + 5);
         return -1;
     }
     return 0;
@@ -125,6 +130,10 @@ static int receive_data_frame(libusb_device_handle *handle, uint8_t *buffer, siz
             received += transferred;
     } while (received < len + 2);
 
+    if (buf[2 + len] != checksum(buf + 1, len + 1)) {
+        fprintf(stderr, "%s: checksum mismatch\n", __func__);
+    }
+
     printf("Received data frame:");
     for(int i = 0; i < len + 4; i++) {
         printf(" %02" PRIX8, buf[i]);
@@ -136,17 +145,27 @@ static int receive_data_frame(libusb_device_handle *handle, uint8_t *buffer, siz
     return 0;
 }
 
-int v850j_reset(libusb_device_handle *handle)
+static uint32_t fxx(void)
 {
     uint32_t fx = 5000000;
-    uint32_t fxx = 4 * fx;
-    useconds_t tCOM = (620.0 / fxx) * 1000000 + 15;
-    useconds_t t12 = (30000.0 / fxx) * 1000000;
+    return fx * 4;
+}
+
+static void wait_tCOM(void)
+{
+    useconds_t tCOM = (620.0 / fxx()) * 1000000 + 15;
+    printf("tCOM = %u\n", tCOM);
+    //usleep(tCOM * 1000);
+}
+
+int v850j_reset(libusb_device_handle *handle)
+{
+    useconds_t t12 = (30000.0 / fxx()) * 1000000;
     printf("t12 = %u\n", t12);
-    useconds_t t2C = (30000.0 / fxx) * 1000000;
+    useconds_t t2C = (30000.0 / fxx()) * 1000000;
     printf("t2C = %u\n", t2C);
 
-    usleep(tCOM);
+    wait_tCOM();
 
     int ret;
     uint8_t endpoint = ENDPOINT_OUT;
@@ -200,6 +219,8 @@ int v850j_reset(libusb_device_handle *handle)
 
 int v850j_get_silicon_signature(libusb_device_handle *handle)
 {
+    wait_tCOM();
+
     int ret;
     ret = send_command_frame(handle, V850ESJx3L_SILICON_SIGNATURE, NULL, 0);
     if (ret != 0)
@@ -221,6 +242,8 @@ int v850j_get_silicon_signature(libusb_device_handle *handle)
 
 int v850j_osc_frequency_set(libusb_device_handle *handle, uint32_t frequency)
 {
+    wait_tCOM();
+
     int ret;
     uint8_t buf[256];
     // TODO use param
@@ -231,6 +254,93 @@ int v850j_osc_frequency_set(libusb_device_handle *handle, uint32_t frequency)
     ret = send_command_frame(handle, V850ESJx3L_OSC_FREQUENCY_SET, buf, 4);
     if (ret != 0)
         return ret;
+    size_t len;
+    ret = receive_data_frame(handle, buf, &len);
+    if (ret != 0)
+        return ret;
+    if (buf[0] != V850ESJx3L_STATUS_ACK) {
+        fprintf(stderr, "%s: no ACK: %02" PRIX8 "\n", __func__, buf[0]);
+        return -1;
+    }
+    return 0;
+}
+
+/*static void my_cb(struct libusb_transfer *transfer)
+{
+    printf("wa-hoo! %d (%d)\n", transfer->status, transfer->actual_length);
+}*/
+
+int v850j_baud_rate_set(libusb_device_handle *handle, uint32_t baud_rate)
+{
+    wait_tCOM();
+
+    /*struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+    libusb_fill_bulk_transfer(transfer, handle, ENDPOINT_IN, malloc(0x200), 0x200, my_cb, NULL, 3000);
+    libusb_submit_transfer(transfer);*/
+
+    int ret;
+    uint8_t buf[256];
+    switch (baud_rate) {
+    case 9600:
+    default:
+        buf[0] = 0x03;
+        break;
+    case 19200:
+        buf[0] = 0x04;
+        break;
+    case 31250:
+        buf[0] = 0x05;
+        break;
+    case 38400:
+        buf[0] = 0x06;
+        break;
+    case 76800:
+        buf[0] = 0x07;
+        break;
+    case 153600:
+        buf[0] = 0x08;
+        break;
+    case 57600:
+        buf[0] = 0x09;
+        break;
+    case 115200:
+        buf[0] = 0x0a;
+        break;
+    case 128000:
+        buf[0] = 0x0b;
+        break;
+    }
+    ret = send_command_frame(handle, V850ESJx3L_BAUD_RATE_SET, buf, 1);
+    if (ret != 0)
+        return ret;
+
+    ret = v850j_78k0_line_control(handle, baud_rate, USB_78K0_LINE_CONTROL_FLOW_CONTROL_NONE |
+                                                     USB_78K0_LINE_CONTROL_PARITY_NONE |
+                                                     USB_78K0_LINE_CONTROL_STOP_BITS_1 |
+                                                     USB_78K0_LINE_CONTROL_DATA_SIZE_8);
+    ret = v850j_78k0_set_err_chr(handle, false, '\0');
+    ret = v850j_78k0_set_dtr_rts(handle, false, true);
+    ret = v850j_78k0_set_dtr_rts(handle, false, true);
+    ret = v850j_78k0_line_control(handle, baud_rate, USB_78K0_LINE_CONTROL_FLOW_CONTROL_NONE |
+                                                     USB_78K0_LINE_CONTROL_PARITY_NONE |
+                                                     USB_78K0_LINE_CONTROL_STOP_BITS_1 |
+                                                     USB_78K0_LINE_CONTROL_DATA_SIZE_8);
+    ret = v850j_78k0_set_err_chr(handle, false, '\0');
+    ret = v850j_78k0_set_xon_xoff_chr(handle, 0x09, 0x00);
+    ret = v850j_78k0_set_err_chr(handle, false, '\0');
+    ret = v850j_78k0_line_control(handle, baud_rate, USB_78K0_LINE_CONTROL_FLOW_CONTROL_NONE |
+                                                     USB_78K0_LINE_CONTROL_PARITY_NONE |
+                                                     USB_78K0_LINE_CONTROL_STOP_BITS_1 |
+                                                     USB_78K0_LINE_CONTROL_DATA_SIZE_8);
+    ret = v850j_78k0_set_err_chr(handle, false, '\0');
+
+    useconds_t tWT10 = (2384.0 / fxx()) * 1000000;
+    usleep(tWT10);
+
+    ret = send_command_frame(handle, V850ESJx3L_RESET, NULL, 0);
+    if (ret != 0)
+        return ret;
+    //libusb_handle_events(NULL);
     size_t len;
     ret = receive_data_frame(handle, buf, &len);
     if (ret != 0)

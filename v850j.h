@@ -74,6 +74,7 @@ enum V850ESJx3LStatus {
 int v850j_reset(libusb_device_handle *handle);
 int v850j_get_silicon_signature(libusb_device_handle *handle);
 int v850j_osc_frequency_set(libusb_device_handle *handle, uint32_t frequency);
+int v850j_baud_rate_set(libusb_device_handle *handle, uint32_t baud_rate);
 
 
 #endif
