@@ -218,3 +218,26 @@ int v850j_get_silicon_signature(libusb_device_handle *handle)
         return ret;
     return 0;
 }
+
+int v850j_osc_frequency_set(libusb_device_handle *handle, uint32_t frequency)
+{
+    int ret;
+    uint8_t buf[256];
+    // TODO use param
+    buf[0] = 5;
+    buf[1] = 0;
+    buf[2] = 0;
+    buf[3] = 4;
+    ret = send_command_frame(handle, V850ESJx3L_OSC_FREQUENCY_SET, buf, 4);
+    if (ret != 0)
+        return ret;
+    size_t len;
+    ret = receive_data_frame(handle, buf, &len);
+    if (ret != 0)
+        return ret;
+    if (buf[0] != V850ESJx3L_STATUS_ACK) {
+        fprintf(stderr, "%s: no ACK: %02" PRIX8 "\n", __func__, buf[0]);
+        return -1;
+    }
+    return 0;
+}

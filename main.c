@@ -142,6 +142,9 @@ static void test(libusb_device_handle *handle)
     ret = v850j_reset(handle);
     if (ret != 0)
         return;
+    ret = v850j_osc_frequency_set(handle, 5000000);
+    if (ret != 0)
+        return;
     ret = v850j_get_silicon_signature(handle);
     if (ret != 0)
         return;
