@@ -1,0 +1,7 @@
+This project serves to flash the Renesas V850 J Series starter kit
+<http://www.renesas.eu/tokyocool> from my Mac OS X v10.5 ppc host.
+
+Headers with constants from data sheets are distributed under MIT License.
+The remaining code is licensed under LGPL/GPL, see the files for details.
+
+Consider the code experimental, use with caution.
