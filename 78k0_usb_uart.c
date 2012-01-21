@@ -77,3 +77,40 @@ int v850j_78k0_set_err_chr(libusb_device_handle *handle, bool open, char err)
     dump_request((uint8_t *)&req, sizeof(req));
     return libusb_control_transfer(handle, 0x40, 0x00, 0, 0, (unsigned char *)&req, sizeof(req), TIMEOUT_MS);
 }
+
+
+#define RETRY_MAX 5
+#define ENDPOINT_OUT 0x02
+#define ENDPOINT_IN  0x81
+
+int usb_78k0_write(libusb_device_handle *handle, uint8_t *data, int length, int *transferred, int timeout)
+{
+    uint8_t endpoint = ENDPOINT_OUT;
+    int ret;
+    int try = 0;
+    do {
+        ret = libusb_bulk_transfer(handle, endpoint, data, length,
+                                   transferred, timeout);
+        if (ret == LIBUSB_ERROR_PIPE) {
+            libusb_clear_halt(handle, endpoint);
+        }
+        try++;
+    } while ((ret == LIBUSB_ERROR_PIPE) && (try < RETRY_MAX));
+    return ret;
+}
+
+int usb_78k0_read(libusb_device_handle *handle, uint8_t *buf, int length, int *transferred, int timeout)
+{
+    uint8_t endpoint = ENDPOINT_IN;
+    int ret;
+    int try = 0;
+    do {
+        ret = libusb_bulk_transfer(handle, endpoint, buf, length,
+                                   transferred, timeout);
+        if (ret == LIBUSB_ERROR_PIPE) {
+            libusb_clear_halt(handle, endpoint);
+        }
+        try++;
+    } while ((ret == LIBUSB_ERROR_PIPE) && (try < RETRY_MAX));
+    return ret;
+}

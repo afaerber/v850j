@@ -26,10 +26,6 @@ static uint8_t checksum(uint8_t *data, size_t data_length)
     return checksum;
 }
 
-#define RETRY_MAX 5
-#define ENDPOINT_OUT 0x02
-#define ENDPOINT_IN  0x81
-
 static int send_command_frame(libusb_device_handle *handle, uint8_t command,
                               const uint8_t *buffer, uint8_t buffer_length)
 {
@@ -48,18 +44,8 @@ static int send_command_frame(libusb_device_handle *handle, uint8_t command,
     }
     printf("\n");
 
-    uint8_t endpoint = ENDPOINT_OUT;
     int transferred;
-    int ret;
-    int try = 0;
-    do {
-        ret = libusb_bulk_transfer(handle, endpoint, buf, buffer_length + 5,
-                                   &transferred, V850J_TIMEOUT_MS);
-        if (ret == LIBUSB_ERROR_PIPE) {
-            libusb_clear_halt(handle, endpoint);
-        }
-        try++;
-    } while ((ret == LIBUSB_ERROR_PIPE) && (try < RETRY_MAX));
+    int ret = usb_78k0_write(handle, buf, buffer_length + 5, &transferred, V850J_TIMEOUT_MS);
     if (ret != LIBUSB_SUCCESS) {
         fprintf(stderr, "%s: sending failed: %d\n", __func__, ret);
         return -1;
@@ -74,18 +60,8 @@ static int send_command_frame(libusb_device_handle *handle, uint8_t command,
 static int receive_data_frame(libusb_device_handle *handle, uint8_t *buffer, size_t *length)
 {
     uint8_t buf[2 + 256 + 2];
-    uint8_t endpoint = ENDPOINT_IN;
     int transferred = 0;
-    int ret;
-    int try = 0;
-    do {
-        ret = libusb_bulk_transfer(handle, endpoint, buf, 2,
-                                   &transferred, V850J_TIMEOUT_MS);
-        if (ret == LIBUSB_ERROR_PIPE) {
-            libusb_clear_halt(handle, endpoint);
-        }
-        try++;
-    } while ((ret == LIBUSB_ERROR_PIPE) && (try < RETRY_MAX));
+    int ret = usb_78k0_read(handle, buf, 2, &transferred, V850J_TIMEOUT_MS);
     if (ret != LIBUSB_SUCCESS) {
         fprintf(stderr, "%s: receiving header failed: %d (transferred %d)\n", __func__, ret, transferred);
         return -1;
@@ -95,15 +71,7 @@ static int receive_data_frame(libusb_device_handle *handle, uint8_t *buffer, siz
         return -1;
     }
     if (transferred < 2) {
-        try = 0;
-        do {
-            ret = libusb_bulk_transfer(handle, endpoint, buf + 1, 1,
-                                       &transferred, V850J_TIMEOUT_MS);
-            if (ret == LIBUSB_ERROR_PIPE) {
-                libusb_clear_halt(handle, endpoint);
-            }
-            try++;
-        } while ((ret == LIBUSB_ERROR_PIPE) && (try < RETRY_MAX));
+        ret = usb_78k0_read(handle, buf + 1, 1, &transferred, V850J_TIMEOUT_MS);
         if (ret != LIBUSB_SUCCESS) {
             fprintf(stderr, "%s: receiving length failed: %d\n", __func__, ret);
             return -1;
@@ -113,15 +81,7 @@ static int receive_data_frame(libusb_device_handle *handle, uint8_t *buffer, siz
 
     int received = 0;
     do {
-        try = 0;
-        do {
-            ret = libusb_bulk_transfer(handle, endpoint, buf + 2 + received, len + 2 - received,
-                                       &transferred, V850J_TIMEOUT_MS);
-            if (ret == LIBUSB_ERROR_PIPE) {
-                libusb_clear_halt(handle, endpoint);
-            }
-            try++;
-        } while ((ret == LIBUSB_ERROR_PIPE) && (try < RETRY_MAX));
+        ret = usb_78k0_read(handle, buf + 2 + received, len + 2 - received, &transferred, V850J_TIMEOUT_MS);
         if (ret != LIBUSB_SUCCESS) {
             fprintf(stderr, "%s: receiving data failed: %d\n", __func__, ret);
             return -1;
@@ -167,19 +127,9 @@ int v850j_reset(libusb_device_handle *handle)
 
     wait_tCOM();
 
-    int ret;
-    uint8_t endpoint = ENDPOINT_OUT;
     uint8_t x = 0x00;
     int transferred;
-    int try = 0;
-    do {
-        ret = libusb_bulk_transfer(handle, endpoint, &x, 1,
-                                   &transferred, V850J_TIMEOUT_MS);
-        if (ret == LIBUSB_ERROR_PIPE) {
-            libusb_clear_halt(handle, endpoint);
-        }
-        try++;
-    } while ((ret == LIBUSB_ERROR_PIPE) && (try < RETRY_MAX));
+    int ret = usb_78k0_write(handle, &x, 1, &transferred, V850J_TIMEOUT_MS);
     if (ret != LIBUSB_SUCCESS) {
         fprintf(stderr, "%s: sending (i) failed: %d\n", __func__, ret);
         return -1;
@@ -187,15 +137,7 @@ int v850j_reset(libusb_device_handle *handle)
     usleep(t12);
 
     x = 0x00;
-    try = 0;
-    do {
-        ret = libusb_bulk_transfer(handle, endpoint, &x, 1,
-                                   &transferred, V850J_TIMEOUT_MS);
-        if (ret == LIBUSB_ERROR_PIPE) {
-            libusb_clear_halt(handle, endpoint);
-        }
-        try++;
-    } while ((ret == LIBUSB_ERROR_PIPE) && (try < RETRY_MAX));
+    ret = usb_78k0_write(handle, &x, 1, &transferred, V850J_TIMEOUT_MS);
     if (ret != LIBUSB_SUCCESS) {
         fprintf(stderr, "%s: sending (ii) failed: %d\n", __func__, ret);
         return -1;

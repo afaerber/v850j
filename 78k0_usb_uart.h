@@ -107,5 +107,8 @@ int v850j_78k0_set_xon_xoff_chr(libusb_device_handle *handle, char xon, char xof
 int v850j_78k0_open_close(libusb_device_handle *handle, bool open);
 int v850j_78k0_set_err_chr(libusb_device_handle *handle, bool open, char err);
 
+int usb_78k0_write(libusb_device_handle *handle, uint8_t *data, int length, int *transferred, int timeout);
+int usb_78k0_read(libusb_device_handle *handle, uint8_t *data, int length, int *transferred, int timeout);
+
 
 #endif
