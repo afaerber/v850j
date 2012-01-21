@@ -33,14 +33,20 @@ int v850j_78k0_line_control(libusb_device_handle *handle, uint32_t baud_rate, ui
     return libusb_control_transfer(handle, 0x40, 0x00, 0, 0, (unsigned char *)&req, sizeof(req), TIMEOUT_MS);
 }
 
-int v850j_78k0_set_dtr_rts(libusb_device_handle *handle, bool dtr, bool rts)
+int v850j_78k0_set_dtr_rts_bits(libusb_device_handle *handle, uint8_t bits)
 {
     struct USB78K0RequestSetDTRRTS req;
     req.bRequest = USB_78K0_REQUEST_SET_DTR_RTS;
-    req.bParams = (dtr ? USB_78K0_SET_DTR_RTS_DTR_ON : 0) |
-                  (rts ? USB_78K0_SET_DTR_RTS_RTS_ON : 0);
+    req.bParams = bits;
     dump_request((uint8_t *)&req, sizeof(req));
     return libusb_control_transfer(handle, 0x40, 0x00, 0, 0, (unsigned char *)&req, sizeof(req), TIMEOUT_MS);
+}
+
+int v850j_78k0_set_dtr_rts(libusb_device_handle *handle, bool dtr, bool rts)
+{
+    return v850j_78k0_set_dtr_rts_bits(handle,
+        (dtr ? USB_78K0_SET_DTR_RTS_DTR_ON : 0) |
+        (rts ? USB_78K0_SET_DTR_RTS_RTS_ON : 0));
 }
 
 int v850j_78k0_set_xon_xoff_chr(libusb_device_handle *handle, char xon, char xoff)

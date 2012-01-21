@@ -101,6 +101,7 @@ enum USB78K0SetErrChrParams {
 
 
 int v850j_78k0_line_control(libusb_device_handle *handle, uint32_t baud_rate, uint8_t params);
+int v850j_78k0_set_dtr_rts_bits(libusb_device_handle *handle, uint8_t bits);
 int v850j_78k0_set_dtr_rts(libusb_device_handle *handle, bool dtr, bool rts);
 int v850j_78k0_set_xon_xoff_chr(libusb_device_handle *handle, char xon, char xoff);
 int v850j_78k0_open_close(libusb_device_handle *handle, bool open);
