@@ -1,3 +1,4 @@
 config.mak
 *.d
 v850j-test
+rl78-test
