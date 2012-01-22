@@ -1,0 +1,2 @@
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0409", ATTRS{idProduct}=="0063", MODE="0666"  # V850ES/Jx3-L Starter Kit
+SUBSYSTEM=="usb", ATTRS{idVendor}=="045b", ATTRS{idProduct}=="0212", MODE="0666"  # RL78/G13 Promotion Board
