@@ -1,7 +1,7 @@
 /*
  * Constants for Renesas μPD78F0730
  *
- * Copyright (c) 2011 Andreas Färber <andreas.faerber@web.de>
+ * Copyright (c) 2011-2012 Andreas Färber <andreas.faerber@web.de>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,20 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#ifdef UART_ASYNC_READ
+#include <pthread.h>
+#endif
+
+
+struct UART78K0 {
+    libusb_device_handle *handle;
+#ifdef UART_ASYNC_READ
+    uint8_t read_buffer[4096];
+    size_t read_buffer_size;
+    pthread_mutex_t read_mutex;
+    pthread_cond_t read_cond;
+#endif
+};
 
 enum USB78K0Requests {
     USB_78K0_REQUEST_LINE_CONTROL       = 0x00,
@@ -100,15 +114,17 @@ enum USB78K0SetErrChrParams {
 };
 
 
-int v850j_78k0_line_control(libusb_device_handle *handle, uint32_t baud_rate, uint8_t params);
-int v850j_78k0_set_dtr_rts_bits(libusb_device_handle *handle, uint8_t bits);
-int v850j_78k0_set_dtr_rts(libusb_device_handle *handle, bool dtr, bool rts);
-int v850j_78k0_set_xon_xoff_chr(libusb_device_handle *handle, char xon, char xoff);
-int v850j_78k0_open_close(libusb_device_handle *handle, bool open);
-int v850j_78k0_set_err_chr(libusb_device_handle *handle, bool open, char err);
+int usb_78k0_init(struct UART78K0 *uart);
 
-int usb_78k0_write(libusb_device_handle *handle, uint8_t *data, int length, int *transferred, int timeout);
-int usb_78k0_read(libusb_device_handle *handle, uint8_t *data, int length, int *transferred, int timeout);
+int v850j_78k0_line_control(struct UART78K0 *uart, uint32_t baud_rate, uint8_t params);
+int v850j_78k0_set_dtr_rts_bits(struct UART78K0 *uart, uint8_t bits);
+int v850j_78k0_set_dtr_rts(struct UART78K0 *uart, bool dtr, bool rts);
+int v850j_78k0_set_xon_xoff_chr(struct UART78K0 *uart, char xon, char xoff);
+int v850j_78k0_open_close(struct UART78K0 *uart, bool open);
+int v850j_78k0_set_err_chr(struct UART78K0 *uart, bool open, char err);
+
+int usb_78k0_write(struct UART78K0 *uart, uint8_t *data, int length, int *transferred, int timeout);
+int usb_78k0_read(struct UART78K0 *uart, uint8_t *data, int length, int *transferred, int timeout);
 
 
 #endif

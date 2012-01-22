@@ -1,7 +1,7 @@
 /*
  * Constants for Renesas V850ES/Jx3-L
  *
- * Copyright (c) 2011 Andreas Färber <andreas.faerber@web.de>
+ * Copyright (c) 2011-2012 Andreas Färber <andreas.faerber@web.de>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,8 @@
 
 
 #include <stdint.h>
+
+#include "78k0_usb_uart.h"
 
 
 #define USB_VID_NEC 0x0409
@@ -70,11 +72,14 @@ enum V850ESJx3LStatus {
     V850ESJx3L_STATUS_BUSY              = 0xff,
 };
 
+struct V850Device {
+    struct UART78K0 uart;
+};
 
-int v850j_reset(libusb_device_handle *handle);
-int v850j_get_silicon_signature(libusb_device_handle *handle);
-int v850j_osc_frequency_set(libusb_device_handle *handle, uint32_t frequency);
-int v850j_baud_rate_set(libusb_device_handle *handle, uint32_t baud_rate);
+int v850j_reset(struct V850Device *handle);
+int v850j_get_silicon_signature(struct V850Device *handle);
+int v850j_osc_frequency_set(struct V850Device *handle, uint32_t frequency);
+int v850j_baud_rate_set(struct V850Device *handle, uint32_t baud_rate);
 
 
 #endif
